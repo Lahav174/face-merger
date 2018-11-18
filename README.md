@@ -7,6 +7,8 @@
 
 3. Implement an alternating scheme, where after each batch, the loss function switches between reconstruction loss, and discriminative loss. Remember that with the discriminative loss, we are propagating two embeddings through the network, then averaging them at the halfway point, then propagating them through and checking the discriminative loss.
 
+### Additional task
+Find another dataset of images, other than faces, which we can use
 
 ## Dataset
 
