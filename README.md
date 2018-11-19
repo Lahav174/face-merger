@@ -1,5 +1,9 @@
 # face-merger
 
+## Updates
+
+11/19/18 I just modified variational auto encoder to accept the TFD as input. I modified the network so that it is deeper, and so that it preserves shape. Now we just need to run it on the cloud to see if it works. Also FYI Carlo, I created an gcloud vm for us to use. Check your email, I set you as co-owner -Lahav
+
 ## TODO
 1. Replace CIFAR dataset in variational_autoencoder.py with TFD dataset. This involves just replacing the code with what's in custom_dataset.py. However, we may need to increase the depth of the neural network to account for the increased complexity if we still want the network to reconstruct the images well. In order for the code to run, you have to download the Toronto Face Dataset (TFD) from the link below.
 

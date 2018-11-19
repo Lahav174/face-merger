@@ -6,13 +6,14 @@ import torch.utils.data
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torchvision import datasets, transforms
+from torchvision import transforms
 from torchvision.utils import save_image
+from custom_dataset import CustomDatasetFromImages
 
 # changed configuration to this instead of argparse for easier interaction
 CUDA = False
 SEED = 1
-BATCH_SIZE = 128
+BATCH_SIZE = 12
 LOG_INTERVAL = 10
 EPOCHS = 100
 
@@ -25,14 +26,15 @@ kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
 # Download or load downloaded MNIST dataset
 # shuffle data at every epoch
+
+
 train_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR10('data', train=True, download=True,
-                   transform=transforms.ToTensor()),
+    CustomDatasetFromImages('lfw'),
     batch_size=BATCH_SIZE, shuffle=True, **kwargs)
 
 # Same for test data
 test_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR10('data', train=False, transform=transforms.ToTensor()),
+    CustomDatasetFromImages('lfw'),
     batch_size=BATCH_SIZE, shuffle=True, **kwargs)
 
 
@@ -41,55 +43,73 @@ class VAE(nn.Module):
     def __init__(self):
         super(VAE, self).__init__()
         
-        self.conv1 = nn.Conv2d(3, 6, 5, padding=2)
-        self.conv2 = nn.Conv2d(6, 6, 5, padding=2)
-        self.conv3 = nn.Conv2d(6, 6, 5, padding=2)
-        self.norm6 = nn.BatchNorm2d(6)
+        self.conv1 = nn.Conv2d(3, 5, 4)
+        self.conv2 = nn.Conv2d(5, 5, 4)
+        self.conv3 = nn.Conv2d(5, 5, 6)
+        self.conv4 = nn.Conv2d(5, 5, 6)
+        self.conv5 = nn.Conv2d(5, 5, 6)
+        self.conv6 = nn.Conv2d(5, 12, 6)
+        self.norm1 = nn.BatchNorm2d(5)
         self.pool = nn.MaxPool2d(2)
-        self.conv4 = nn.Conv2d(6, 16, 5, padding=2)
-        self.norm16 = nn.BatchNorm2d(16)
-        self.fc11 = nn.Linear(16 * 8 * 8, 1000)
-        self.fc12 = nn.Linear(16 * 8 * 8, 1000)
+        self.norm2 = nn.BatchNorm2d(5)
+        self.norm3 = nn.BatchNorm2d(12)
         
-        self.fc2 = nn.Linear(1000, 16 * 8 * 8)
-        self.unconv4 = nn.ConvTranspose2d(16, 6, 5, padding=2)
-        self.unconv3 = nn.ConvTranspose2d(6, 6, 5, padding=2)
-        self.unconv2 = nn.ConvTranspose2d(6, 6, 5, padding=2)
-        self.unconv1 = nn.ConvTranspose2d(6, 3, 5, padding=2)
+        self.fc11 = nn.Linear(12 * 23 * 23, 1000)
+        self.fc12 = nn.Linear(12 * 23 * 23, 1000)
+        self.fc2 = nn.Linear(1000, 12 * 23 * 23)
+        
+        self.unconv6 = nn.ConvTranspose2d(12, 5, 6)
+        self.unconv5 = nn.ConvTranspose2d(5, 5, 6)
+        self.unconv4 = nn.ConvTranspose2d(5, 5, 6)
+        self.unconv3 = nn.ConvTranspose2d(5, 5, 6)
+        self.unconv2 = nn.ConvTranspose2d(5, 5, 4)
+        self.unconv1 = nn.ConvTranspose2d(5, 3, 4)
         self.interpolate = F.interpolate
         self.sigmoid = nn.Sigmoid()
-        self.bn6 = nn.BatchNorm2d(6)
-        self.bn3 = nn.BatchNorm2d(3)
+        self.norm4 = nn.BatchNorm2d(5)
+        self.norm5 = nn.BatchNorm2d(5)
+        self.norm6 = nn.BatchNorm2d(3)
         self.relu = nn.ReLU()
                 
     def encode(self, x: Variable) -> (Variable, Variable):
         x = self.conv1(x)
         x = self.conv2(x)
-        x = self.norm6(x)
+        x = self.norm1(x)
         x = self.relu(x)
         x = self.pool(x)
+        assert x.shape[2]%2 == 0, "The width and height of the image are not even"
         x = self.conv3(x)
         x = self.conv4(x)
-        x = self.norm16(x)
+        x = self.norm2(x)
         x = self.relu(x)
         x = self.pool(x)
-        #print(x.shape)
-        x = x.view(-1, 16 * 8 * 8)
+        assert x.shape[2]%2 == 0, "The width and height of the image are not even"
+        x = self.conv5(x)
+        x = self.conv6(x)
+        x = self.norm3(x)
+        x = self.relu(x)
+        x = self.pool(x)
+        x = x.view(-1, 12 * 23 * 23)
         mu, logvar = self.fc11(x), self.fc12(x)
         return mu, logvar
     
     def decode(self, x: Variable) -> Variable:
         x = self.fc2(x)
-        x = x.view(-1, 16, 8, 8)
+        x = x.view(-1, 12, 23, 23)
+        x = self.interpolate(x,scale_factor=2)
+        x = self.unconv6(x)
+        x = self.unconv5(x)
+        x = self.norm4(x)
+        x = self.relu(x)
         x = self.interpolate(x,scale_factor=2)
         x = self.unconv4(x)
         x = self.unconv3(x)
-        x = self.bn6(x)
+        x = self.norm5(x)
         x = self.relu(x)
         x = self.interpolate(x,scale_factor=2)
         x = self.unconv2(x)
         x = self.unconv1(x)
-        x = self.bn3(x)       
+        x = self.norm6(x)       
         x = self.sigmoid(x)
         return x
     
@@ -127,7 +147,7 @@ class VAE(nn.Module):
             # - sample from a normal distribution with standard
             #   deviation = std and mean = mu by multiplying mean 0
             #   stddev 1 sample with desired std and mu, see
-            #   https://stats.stackexchange.com/a/16338
+            #   https://stats.stackexchange.com/a/12338
             # - so we have 128 sets (the batch) of random ZDIMS-float
             #   vectors sampled from normal distribution with learned
             #   std and mu for the current input
@@ -195,7 +215,7 @@ def train(epoch):
         # calculate the gradient of the loss w.r.t. the graph leaves
         # i.e. input variables -- by the power of pytorch!
         loss.backward()
-        train_loss += loss.data[0]
+        train_loss += loss.item()
         optimizer.step()
         if batch_idx % LOG_INTERVAL == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
