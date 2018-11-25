@@ -1,5 +1,9 @@
 # face-merger
 
+Download TFD from here: http://vis-www.cs.umass.edu/lfw/
+
+Here is the google cloud vm: https://console.cloud.google.com/compute/instances?project=face-merger&organizationId=819335046878&duration=PT1H
+
 ## Updates
 
 11/19/18 I just modified variational auto encoder to accept the TFD as input. I modified the network so that it is deeper, and so that it preserves shape. Now we just need to run it on the cloud to see if it works. Also FYI Carlo, I created an gcloud vm for us to use. Check your email, I set you as co-owner -Lahav
@@ -13,10 +17,6 @@
 
 ### Additional task
 Find another dataset of images, other than faces, which we can use
-
-## Dataset
-
-Download TFD from here: http://vis-www.cs.umass.edu/lfw/
 
 ## Citations
 
