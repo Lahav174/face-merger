@@ -40,12 +40,9 @@ test_loader = torch.utils.data.DataLoader(
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.conv1 = nn.Conv2d(3, 8, 7, padding=1)
-        self.conv2 = nn.Conv2d(8, 8, 7)
-        self.conv3 = nn.Conv2d(8, 16, 9)
-        self.conv4 = nn.Conv2d(16, 16, 9)
-        self.conv5 = nn.Conv2d(16, 32, 9)
-        self.conv6 = nn.Conv2d(32, 32, 9)
+        self.conv1 = nn.Conv2d(3, 8, 7)
+        self.conv2 = nn.Conv2d(8, 16, 9)
+        self.conv3 = nn.Conv2d(16, 32, 9)
         self.pool = nn.MaxPool2d(2)
         self.relu = nn.ReLU()
         self.norm1 = nn.BatchNorm2d(8)
@@ -53,31 +50,28 @@ class Discriminator(nn.Module):
         self.norm3 = nn.BatchNorm2d(32)
         
         
-        self.fc1 = nn.Linear(32 * 18 * 18, 250)
+        self.fc1 = nn.Linear(32 * 24 * 24, 250)
         self.fc2 = nn.Linear(250, 80)
         self.fc3 = nn.Linear(80, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.conv2(x)
         x = self.norm1(x)
         x = self.relu(x)
         x = self.pool(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
+        x = self.conv2(x)
         x = self.norm2(x)
         x = self.relu(x)
         x = self.pool(x)
-        x = self.conv5(x)
-        x = self.conv6(x)
+        x = self.conv3(x)
         x = self.norm3(x)
         x = self.relu(x)
         x = self.pool(x)
         
         
-        
-        x = x.view(-1, 32 * 18 * 18)
+       # print(x.shape)
+        x = x.view(-1, 32 * 24 * 24)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.sigmoid(self.fc3(x))
@@ -100,9 +94,9 @@ class VAE(nn.Module):
         self.norm2 = nn.BatchNorm2d(16)
         self.norm3 = nn.BatchNorm2d(32)
         
-        self.fc11 = nn.Linear(32 * 18 * 18, 1000)
-        self.fc12 = nn.Linear(32 * 18 * 18, 1000)
-        self.fc2 = nn.Linear(1000, 32 * 18 * 18)
+        self.fc11 = nn.Linear(32 * 18 * 18, 2000)
+        self.fc12 = nn.Linear(32 * 18 * 18, 2000)
+        self.fc2 = nn.Linear(2000, 32 * 18 * 18)
         
         self.unconv6 = nn.ConvTranspose2d(32, 32, 9)
         self.unconv5 = nn.ConvTranspose2d(32, 16, 9)
@@ -239,7 +233,7 @@ def generator_loss_function(recon_x, x, mu, logvar) -> Variable:
 
     # BCE tries to make our reconstruction as accurate as possible
     # KLD tries to push the distributions as close as possible to unit Gaussian
-    return BCE.mul(0.95) + KLD.mul(0.05)
+    return BCE.mul(0.5) + KLD.mul(0.5)
 
 adversarial_loss = torch.nn.BCELoss()
 
@@ -278,8 +272,8 @@ def train(epoch):
 
         recon_img, mu, logvar = generator(inputs)
 
-        g_loss =    0.0001 * adversarial_loss(discriminator(recon_img), valid) + \
-                    0.9999 * generator_loss_function(recon_img, inputs, mu, logvar)
+        g_loss =    0.001 * adversarial_loss(discriminator(recon_img), valid) + \
+                    0.999 * generator_loss_function(recon_img, inputs, mu, logvar)
         
         g_loss.backward()
         optimizer_G.step()
