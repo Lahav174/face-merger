@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 class CustomDatasetFromImages(Dataset):
-    def __init__(self, images_path):
+    def __init__(self, images_path, downsample=False):
         """
         Args:
             images_path (string): path to folder containing images
@@ -20,6 +20,7 @@ class CustomDatasetFromImages(Dataset):
         # Transforms
         self.to_tensor = transforms.ToTensor()
         # First column contains the image paths
+        self.downsample = downsample
         self.image_arr = [str(e) for e in Path(images_path).rglob("*.jpg")]
         # Calculate len
         self.data_len = len(self.image_arr)
@@ -32,6 +33,8 @@ class CustomDatasetFromImages(Dataset):
 
         # Transform image to tensor
         img_as_tensor = self.to_tensor(img_as_img)
+        if self.downsample:
+            img_as_tensor = img_as_tensor[:,13:-13,13:-13]
 
         return (img_as_tensor, img_as_tensor)
 
