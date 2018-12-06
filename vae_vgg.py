@@ -114,6 +114,7 @@ class VAE(nn.Module):
       
     def reparameterize(self, mu, logvar):
         if self.training:
+            std = logvar.mul(0.5).exp_()
             eps = Variable(std.data.new(std.size()).normal_())
             return eps.mul(std).add_(mu)
         else:
@@ -125,20 +126,36 @@ class VAE(nn.Module):
         z = self.reparameterize(mu, logvar)
         z = self.fc_dec(z)
         z = z.view(-1,512,7,7)
-        return self.decode(z)
+        return self.decode(z), mu, logvar
 
+
+
+def loss_function(recon_x, x, mu, logvar) -> Variable:
+    BCE = F.binary_cross_entropy(recon_x, x)
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    KLD /= BATCH_SIZE * (32*32*3)
+
+    return BCE.mul(0.9) + KLD.mul(0.1)
 
 
 CUDA = True
 SEED = 1
-BATCH_SIZE = 64
+BATCH_SIZE = 12
 LOG_INTERVAL = 10
 EPOCHS = 5
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+train_loader = torch.utils.data.DataLoader(
+            CustomDatasetFromImages('lfw', downsample=True),
+                batch_size=BATCH_SIZE, shuffle=True)
 
-vgg = torchvision.models.vgg_bn(pretrained=True)
+test_loader = torch.utils.data.DataLoader(
+    CustomDatasetFromImages('lfw', downsample=True),
+    batch_size=BATCH_SIZE, shuffle=True)
+
+
+vgg = torchvision.models.vgg11_bn(pretrained=True)
 model = VAE(vgg).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
