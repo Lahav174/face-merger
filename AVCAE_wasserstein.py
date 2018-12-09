@@ -258,16 +258,15 @@ train_dis_losses = []
 def train(epoch):    
     generator.train()
     discriminator.train()
-    running_gen_loss = 0.0
-    running_dis_loss = 0.0
+    running_gen_loss = []
+    running_dis_loss = []
     
+    global gen_iterations
     
     data_iter = iter(train_loader)
     i = 0
     while i < len(train_loader):   
-        
-        if i%30==0:
-            print("Batch number",i)
+        print("Batch number",i)
         
         ############################
         # (1) Update D network
@@ -276,7 +275,11 @@ def train(epoch):
             p.requires_grad = True # they are set to False below in generator update
 
         # train the discriminator Diters times
-        Diters = 100
+        Diters = None
+        if gen_iterations < 25 or gen_iterations % 500 == 0:
+            Diters = 99
+        else:
+            Diters = 5
         j = 0
         while j < Diters and i < len(train_loader):
             j += 1
@@ -309,7 +312,7 @@ def train(epoch):
             inputv = recon_img.clone()
             errD_fake = discriminator(inputv)
             errD_fake.backward(mone)
-            running_dis_loss += (errD_real - errD_fake)#FOR PRINTING
+            running_dis_loss.append(abs((errD_real - errD_fake).mean()))#FOR PRINTING
             optimizer_D.step()
 
             #print("Finished discrim")    
@@ -320,31 +323,36 @@ def train(epoch):
             p.requires_grad = False # to avoid computation
         optimizer_G.zero_grad()
 
-        data = data_iter.next()
-        inputs, _ = data
-        batch_size = inputs.size(0)
-        one = torch.FloatTensor(np.ones(batch_size).reshape((batch_size,1)))
-        mone = one * -1
-        if CUDA:
-                one, mone = one.cuda(), mone.cuda()
-                inputs = inputs.cuda()
+        i += 1
         
-        recon_img, mu, logvar = generator(inputs)
-        g_loss = generator_loss_function(recon_img, inputs, mu, logvar)
-        running_gen_loss += g_loss.item()
-        g_loss.backward()
-        
-        discrim_input = Variable(recon_img.detach(), requires_grad=True)
-        g_loss = discriminator(discrim_input)
-        running_gen_loss += g_loss.mean().item()
-        g_loss.backward(one)
-        
-        optimizer_G.step()   
-        #print("Finished generator")  
+        if i < len(train_loader):
+            data = data_iter.next()
+            inputs, _ = data
+            batch_size = inputs.size(0)
+            one = torch.FloatTensor(np.ones(batch_size).reshape((batch_size,1)))
+            mone = one * -1
+            if CUDA:
+                    one, mone = one.cuda(), mone.cuda()
+                    inputs = inputs.cuda()
+            
+            recon_img, mu, logvar = generator(inputs)
+            g_loss = generator_loss_function(recon_img, inputs, mu, logvar)
+            running_gen_loss.append(g_loss.item())
+            g_loss.backward()
+            
+            discrim_input = Variable(recon_img.detach(), requires_grad=True)
+            g_loss = discriminator(discrim_input)
+            running_gen_loss.append(g_loss.mean().item())
+            g_loss.backward(one)
+            
+            optimizer_G.step()   
+            #print("Finished generator")  
+        gen_iterations += 1
+        print("gen_iterations:",gen_iterations)
     
     
-    train_dis_losses.append(running_dis_loss / len(train_loader))
-    train_gen_losses.append(running_gen_loss / len(train_loader))
+    train_dis_losses.append(sum(running_dis_loss) / len(running_dis_loss))
+    train_gen_losses.append(sum(running_gen_loss) / len(running_gen_loss))
     
     if not os.path.isdir("results"):
         os.mkdir("results")
@@ -398,7 +406,7 @@ def test(epoch):
     #print('====> Test set loss: {:.4f}'.format(test_loss))
 
 
-
+gen_iterations = 0
 for epoch in range(1, EPOCHS + 1):
     print("Epoch:",epoch)
     train(epoch)
