@@ -16,15 +16,15 @@ gcloud compute scp <YOUR_UNI>@face-merger-instance-vm	:~/results.zip results.zip
 
 Download TFD from here: http://vis-www.cs.umass.edu/lfw/
 
-~~Here is the google cloud vm: https://console.cloud.google.com/compute/instances?project=face-merger&organizationId=819335046878&duration=PT1H
+~~Here is the google cloud vm: https://console.cloud.google.com/compute/instances?project=face-merger&organizationId=819335046878&duration=PT1H~~
 
 ### Notes from meeting w/ Boyuan
 
-- ~~Try using L2/MSE loss.
+- ~~Try using L2/MSE loss.~~
 
 - Use multi-scale convolution. Specifically, concatenate the output of each conv layer with the output of the previous conv layer, so the network can retain info from earlier in the network.
 
-- ~~Print actual values of adverserial loss and VAE loss. That way we can learn a better ratio for the two losses, as opposed to arbitrarily picking 0.999 and 0.1.
+- ~~Print actual values of adverserial loss and VAE loss. That way we can learn a better ratio for the two losses, as opposed to arbitrarily picking 0.999 and 0.1.~~
 
 - Find a bigger dataset to use. The TFD only has about 13000 images, so a different dataset might be better.
 
